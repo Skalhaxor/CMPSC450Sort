@@ -55,13 +55,16 @@ void sort(float *data, int length) {
     // conflicts. 
 #pragma omp parallel firstprivate(dataStartIndexes, dataLengths)
     {
-        // this is just a test
+        // this is just a test for debugging
         int threadId = omp_get_thread_num();
 #pragma omp critical 
         cout << "I'm Thread " << threadId << " and handle data from " << dataStartIndexes[threadId] <<
             " to " << dataStartIndexes[threadId] + dataLengths[threadId] - 1 << endl;
 
         // Quicksort ///////////////////////////////////////////////////
+        // should each thread operate on the main array but only in its own secgment?
+        // or should each thread copy its data segment to its own local private array?
+        // either way, we should just find a library function to do this prob.
 
 
         // Choose Sample Data //////////////////////////////////////////
