@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="sort.cpp">
+    <ClCompile Include="floatsort.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
