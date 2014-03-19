@@ -95,6 +95,7 @@ int main()
     multimerge(arrays, lengths, 4, sorted, 5);
     for (int i = 0; i < 5; ++i)
         std::cout << sorted[i] << ", ";
+    // notice that the 20 is in the final result twice and one of the real data points is missing
 
     std::cin.get();
 }
