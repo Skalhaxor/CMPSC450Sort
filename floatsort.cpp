@@ -319,8 +319,10 @@ void multimerge(float* arrays[], const int lengths[], const int numArrays, float
 
     // initialize indexes and insert into curPriorities the first value from each array in arrays
     for (int i = 0; i < numArrays; ++i) {
-        indexes[i] = 1;
-        curPriorities.push( PriorityInfo(arrays[i][0], i) );
+        if (lengths[i] > 0) {
+            indexes[i] = 1;
+            curPriorities.push( PriorityInfo(arrays[i][0], i) );
+        }
     }
 
     // pop the top of the priority queue and add that value to newArray; then add to curPriorities the
