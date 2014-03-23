@@ -7,7 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#define DEBUG
+//define this to get lots of trace output from the parallel sort algorithm
+//#define DEBUG_TRACE
+//define this to have the program run std::sort and the parallel sort and make sure they
+//produce the right output
+#define CHECK_ALG
 
 // structure to put in the multimerge priority queue
 struct PriorityInfo
@@ -95,8 +99,20 @@ int main(int argc, char* argv[])
 
     assert((alg_type == 0) || (alg_type == 1));
 
+    
+
     for (int i = 0; i < num_iterations; ++i) {
         gen_input(A, n, input_type);
+
+#ifdef CHECK_ALG
+        float* r1 = standardSort(A, n);
+        float* r2 = sort(A, n);
+        for (int j = 0; j<n; ++j) {
+            assert(r1[j] == r2[j]);
+        }
+        delete[] r1;
+        delete[] r2;
+#endif //CHECK_ALG
 
         double time = omp_get_wtime();
         float* result;
@@ -159,8 +175,7 @@ float* sort(float *data, int length) {
         int dataStart  = dataStartIndexes[threadId];
         int dataLength = dataLengths[threadId];
 
-#ifdef DEBUG
-        // this is just a test for debugging
+#ifdef DEBUG_TRACE
 #pragma omp critical 
         std::cout << "I'm Thread " << threadId << " and handle data from " << dataStartIndexes[threadId] <<
             " to " << dataStartIndexes[threadId] + dataLengths[threadId] - 1 << std::endl;
@@ -172,14 +187,14 @@ float* sort(float *data, int length) {
         // either way, we should just find a library function to do this prob
         std::vector<float> dataVec(data + dataStart, data + dataStart + dataLength);
         std::sort(dataVec.begin(), dataVec.end());
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
 #pragma omp critical 
         {
             std::cout << "Thread " << threadId << " sort:\n";
             for (int i = 0; i < dataLength; ++i)
                 std::cout << dataVec[i] << std::endl;
         }
-#endif // DEBUG
+#endif // DEBUG_TRACE
 
         
         // Choose Sample Data //////////////////////////////////////////
@@ -197,11 +212,11 @@ float* sort(float *data, int length) {
 #pragma omp single
         {
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
             std::cout << "The samples: " << std::endl;
             for (int i = 0; i < numThreadsSq; ++i)
                 std::cout << samples[i] << std::endl;
-#endif // DEBUG
+#endif // DEBUG_TRACE
 
 
             // Multimerge Samples //////////////////////////////////////
@@ -213,11 +228,11 @@ float* sort(float *data, int length) {
                 arrays[i]  = samples + i * numThreads;
             }
             multimerge(arrays, lengths, numThreads, sortedSamples, numThreadsSq);
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
             std::cout << "Sorted samples: " << std::endl;
             for (int i = 0; i < numThreadsSq; ++i)
                 std::cout << sortedSamples[i] << std::endl;
-#endif // DEBUG
+#endif // DEBUG_TRACE
             // Choose Pivots ///////////////////////////////////////////
             // choose p - 1 pivots from the merged samples, non-randomly
             interval = numThreads;
@@ -229,11 +244,11 @@ float* sort(float *data, int length) {
             // so make the endpoint of the last partition the largest possible float value
             pivots[numThreads] = FLT_MAX;
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
             std::cout << "The pivots: " << std::endl;
             for (int i = 0; i <= numThreads; ++i)
                 std::cout << pivots[i] << std::endl;
-#endif // DEBUG
+#endif // DEBUG_TRACE
 
         } // implicit barrier
 
@@ -265,7 +280,7 @@ float* sort(float *data, int length) {
             }
         }
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
 #pragma omp critical
         {
             std::cout << "For thread " << threadId << ":\n";
@@ -274,7 +289,7 @@ float* sort(float *data, int length) {
                     << " and is " << partitionLengths[i] << " long." << std::endl;
             }
         }
-#endif // DEBUG
+#endif // DEBUG_TRACE
 
 #pragma omp barrier
 
@@ -296,7 +311,7 @@ float* sort(float *data, int length) {
 
 #pragma omp barrier
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
 #pragma omp critical
         {
             std::cout << "For thread " << threadId << ":\n";
@@ -304,7 +319,7 @@ float* sort(float *data, int length) {
                 std::cout << dataInBuffs[threadId].data[i] << std::endl;
             }
         }
-#endif // DEBUG
+#endif // DEBUG_TRACE
 
         // each thread sorts the data the other threads passed to it
         float* dataPointer = dataInBuffs[threadId].data;
@@ -317,7 +332,7 @@ float* sort(float *data, int length) {
         multimerge(arrays, dataInBuffs[threadId].segmentLengths, numThreads, sortedData, dataInBuffs[threadId].index);
         sortedDatas[threadId] = sortedData;
 
-#ifdef DEBUG
+#ifdef DEBUG_TRACE
 #pragma omp critical
         {
             std::cout << "For thread " << threadId << ":\n";
@@ -325,7 +340,7 @@ float* sort(float *data, int length) {
                 std::cout << sortedData[i] << std::endl;
             }
         }
-#endif // DEBUG
+#endif // DEBUG_TRACE
 
 
 #pragma omp barrier
