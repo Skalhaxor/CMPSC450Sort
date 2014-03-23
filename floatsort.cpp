@@ -3,8 +3,11 @@
 #include <queue>
 #include <algorithm>
 #include <omp.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define ARRAY_LENGTH 50       // length of array to be sorted
+//#define DEBUG
 
 // structure to put in the multimerge priority queue
 struct PriorityInfo
@@ -51,53 +54,72 @@ private:
 };
 
 float* sort(float *data, int length);
+float* standardSort(float*data, int length);
 void multimerge(float* arrays[], const int lengths[], const int numArrays, float newArray[],
                                                                          const int newLength);
+/* generate different inputs for testing sort */
+int gen_input(float *A, int n, int input_type);
 
-int main()
+int main(int argc, char* argv[])
 {
-    /*float* sortedArray = new float[ARRAY_LENGTH];
-    for (int i = 0; i < ARRAY_LENGTH; ++i) {
-        sortedArray[i] = i;
+    if (argc != 4) {
+        fprintf(stderr, "%s <n> <input_type> <alg_type>\n", argv[0]);
+        fprintf(stderr, "input_type 0: uniform random\n");
+        fprintf(stderr, "           1: already sorted\n");
+        fprintf(stderr, "           2: almost sorted\n");
+        fprintf(stderr, "           3: single unique value\n");
+        fprintf(stderr, "           4: sorted in reverse\n");
+        fprintf(stderr, "alg_type 0: use C++ std::sort\n");
+        fprintf(stderr, "         1: use parallel sort\n");
+        exit(1);
     }
 
-    float* backwards = new float[ARRAY_LENGTH];
-    for (int i = 0; i < ARRAY_LENGTH; ++i) {
-        backwards[i] = ARRAY_LENGTH-i;
-    }*/
+    int n;
 
-    float* random = new float[ARRAY_LENGTH];
-    for (int i = 0; i < ARRAY_LENGTH; ++i) {
-        random[i] = (float)rand();
+    n = atoi(argv[1]);
+
+    assert(n > 0);
+    assert(n <= 1000000000);
+
+    float *A;
+    A = new float[n];
+    assert(A != 0);
+
+    int input_type = atoi(argv[2]);
+    assert(input_type >= 0);
+    assert(input_type <= 4);
+
+    int alg_type = atoi(argv[3]);
+
+    int num_iterations = 10;
+
+    assert((alg_type == 0) || (alg_type == 1));
+
+    for (int i = 0; i < num_iterations; ++i) {
+        gen_input(A, n, input_type);
+
+        double time = omp_get_wtime();
+        float* result;
+        int printDigs = n > 5 ? 5 : n;
+
+        if (alg_type == 0) {
+            result = standardSort(A, n);
+        }
+        else /*if (alg_type == 1)*/ {
+            result = sort(A, n);
+        }
+
+        time = omp_get_wtime() - time;
+        printf("Iteration %d: %9.3lfms  First numbers: (", i + 1, time);
+        for (int j = 0; j < printDigs; ++j) {
+            printf(" %.3f", result[j]);
+        }
+        printf(")\n");
+
+        delete[] result;
     }
 
-    double time = omp_get_wtime();
-    float* sortedData = sort(random, ARRAY_LENGTH);
-    time = omp_get_wtime() - time;
-
-    std::cout << std::endl << "Sorted Data: " << std::endl;
-    for (int i = 0; i < ARRAY_LENGTH; ++i) {
-        std::cout << sortedData[i] << std::endl;
-    }
-
-    std::cout << "Press any key to continue...\n";
-
-    float* test = new float[5];
-    test[0] = 23; // start of first partition
-    test[1] = 55;
-    test[2] = 29;   // start of second partition
-    test[3] = 102;
-    test[4] = 20; // start of third and fourth partition. Third partition has no length
-
-    int lengths[] = { 2, 2, 0, 1 };
-    float sorted[5];
-    float* arrays[] = { test, test + 2, test + 4, test + 4 };
-    multimerge(arrays, lengths, 4, sorted, 5);
-    for (int i = 0; i < 5; ++i)
-        std::cout << sorted[i] << ", ";
-    // notice that the 20 is in the final result twice and one of the real data points is missing
-
-    std::cin.get();
+    return 0;
 }
 
 float* sort(float *data, int length) {
@@ -107,7 +129,7 @@ float* sort(float *data, int length) {
     int*         dataStartIndexes = new int[numThreads];
     int*         dataLengths      = new int[numThreads];
     int          segmentLength    = length / numThreads;
-    float*       samples          = new float[numThreads];
+    float*       samples          = new float[numThreadsSq];
     float*       pivots           = new float[numThreads + 1];
     WriteBuffer* dataInBuffs      = new WriteBuffer[numThreads];
     float**      sortedDatas      = new float*[numThreads];
@@ -137,10 +159,12 @@ float* sort(float *data, int length) {
         int dataStart  = dataStartIndexes[threadId];
         int dataLength = dataLengths[threadId];
 
+#ifdef DEBUG
         // this is just a test for debugging
 #pragma omp critical 
         std::cout << "I'm Thread " << threadId << " and handle data from " << dataStartIndexes[threadId] <<
             " to " << dataStartIndexes[threadId] + dataLengths[threadId] - 1 << std::endl;
+#endif
 
         // Quicksort ///////////////////////////////////////////////////
         // should each thread operate on the main array but only in its own secgment?
@@ -148,12 +172,15 @@ float* sort(float *data, int length) {
         // either way, we should just find a library function to do this prob
         std::vector<float> dataVec(data + dataStart, data + dataStart + dataLength);
         std::sort(dataVec.begin(), dataVec.end());
+#ifdef DEBUG
 #pragma omp critical 
         {
             std::cout << "Thread " << threadId << " sort:\n";
             for (int i = 0; i < dataLength; ++i)
                 std::cout << dataVec[i] << std::endl;
         }
+#endif // DEBUG
+
         
         // Choose Sample Data //////////////////////////////////////////
         // choose numThreads amount from each thread's data; has to be non-random
@@ -169,9 +196,14 @@ float* sort(float *data, int length) {
 
 #pragma omp single
         {
+
+#ifdef DEBUG
             std::cout << "The samples: " << std::endl;
             for (int i = 0; i < numThreadsSq; ++i)
                 std::cout << samples[i] << std::endl;
+#endif // DEBUG
+
+
             // Multimerge Samples //////////////////////////////////////
             int*    lengths       = new int[numThreads];
             float** arrays        = new float*[numThreads];
@@ -181,11 +213,11 @@ float* sort(float *data, int length) {
                 arrays[i]  = samples + i * numThreads;
             }
             multimerge(arrays, lengths, numThreads, sortedSamples, numThreadsSq);
-
+#ifdef DEBUG
             std::cout << "Sorted samples: " << std::endl;
             for (int i = 0; i < numThreadsSq; ++i)
                 std::cout << sortedSamples[i] << std::endl;
-
+#endif // DEBUG
             // Choose Pivots ///////////////////////////////////////////
             // choose p - 1 pivots from the merged samples, non-randomly
             interval = numThreads;
@@ -197,10 +229,13 @@ float* sort(float *data, int length) {
             // so make the endpoint of the last partition the largest possible float value
             pivots[numThreads] = FLT_MAX;
 
+#ifdef DEBUG
             std::cout << "The pivots: " << std::endl;
             for (int i = 0; i <= numThreads; ++i)
                 std::cout << pivots[i] << std::endl;
-        }
+#endif // DEBUG
+
+        } // implicit barrier
 
 
         // Partion by Pivots ///////////////////////////////////////////
@@ -230,6 +265,7 @@ float* sort(float *data, int length) {
             }
         }
 
+#ifdef DEBUG
 #pragma omp critical
         {
             std::cout << "For thread " << threadId << ":\n";
@@ -238,6 +274,8 @@ float* sort(float *data, int length) {
                     << " and is " << partitionLengths[i] << " long." << std::endl;
             }
         }
+#endif // DEBUG
+
 #pragma omp barrier
 
         // Multimerge Classes //////////////////////////////// //////////
@@ -258,6 +296,7 @@ float* sort(float *data, int length) {
 
 #pragma omp barrier
 
+#ifdef DEBUG
 #pragma omp critical
         {
             std::cout << "For thread " << threadId << ":\n";
@@ -265,7 +304,9 @@ float* sort(float *data, int length) {
                 std::cout << dataInBuffs[threadId].data[i] << std::endl;
             }
         }
+#endif // DEBUG
 
+        // each thread sorts the data the other threads passed to it
         float* dataPointer = dataInBuffs[threadId].data;
         float** arrays = new float*[numThreads];
         float*  sortedData = new float[dataInBuffs[threadId].index];
@@ -276,6 +317,7 @@ float* sort(float *data, int length) {
         multimerge(arrays, dataInBuffs[threadId].segmentLengths, numThreads, sortedData, dataInBuffs[threadId].index);
         sortedDatas[threadId] = sortedData;
 
+#ifdef DEBUG
 #pragma omp critical
         {
             std::cout << "For thread " << threadId << ":\n";
@@ -283,6 +325,8 @@ float* sort(float *data, int length) {
                 std::cout << sortedData[i] << std::endl;
             }
         }
+#endif // DEBUG
+
 
 #pragma omp barrier
 
@@ -346,4 +390,76 @@ void multimerge(float* arrays[], const int lengths[], const int numArrays, float
     }
 
     delete[] indexes;
+}
+
+float* standardSort(float* data, int length) {
+    std::vector<float> dataVec(data, data + length);
+    std::sort(dataVec.begin(), dataVec.end());
+    float* result = new float[dataVec.size()];
+    std::copy(dataVec.begin(), dataVec.end(), result);
+    return result;
+}
+
+/* generate different inputs for testing sort */
+int gen_input(float *A, int n, int input_type) {
+
+    int i;
+
+    /* uniform random values */
+    if (input_type == 0) {
+
+        srand(123);
+        for (i = 0; i<n; i++) {
+            A[i] = ((float)rand()) / ((float)RAND_MAX) * 10000;
+        }
+
+        /* sorted values */
+    }
+    else if (input_type == 1) {
+
+        for (i = 0; i<n; i++) {
+            A[i] = (float)i;
+        }
+
+        /* almost sorted */
+    }
+    else if (input_type == 2) {
+
+        for (i = 0; i<n; i++) {
+            A[i] = (float)i;
+        }
+
+        /* do a few shuffles */
+        int num_shuffles = (n / 100) + 1;
+        srand(1234);
+        for (i = 0; i<num_shuffles; i++) {
+            int j = (rand() % n);
+            int k = (rand() % n);
+
+            /* swap A[j] and A[k] */
+            float tmpval = A[j];
+            A[j] = A[k];
+            A[k] = tmpval;
+        }
+
+        /* array with single unique value */
+    }
+    else if (input_type == 3) {
+
+        for (i = 0; i<n; i++) {
+            A[i] = 1.0;
+        }
+
+        /* sorted in reverse */
+    }
+    else {
+
+        for (i = 0; i<n; i++) {
+            A[i] = (float)(n + 1.0 - i);
+        }
+
+    }
+
+    return 0;
+
 }
