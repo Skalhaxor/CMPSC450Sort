@@ -1,3 +1,7 @@
+// Created by: Alexander Anderson, Jason Killian
+// CMPSC 450 Homework 2
+// Date: March 23, 2014
+
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -7,11 +11,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//define this to get lots of trace output from the parallel sort algorithm
+// define this to get lots of trace output from the parallel sort algorithm
 //#define DEBUG_TRACE
-//define this to have the program run std::sort and the parallel sort and make sure they
+
+// define this to have the program run std::sort and the parallel sort and make sure they
 //produce the right output
 #define CHECK_ALG
+
+#define NUM_ITER 10           // number of times to run the algorithm for testing
+#define NUM_ARG  4            // number of arguments being passed on command line
 
 // structure to put in the multimerge priority queue
 struct PriorityInfo
@@ -26,66 +34,63 @@ struct PriorityInfo
     {}
 
     // overload the < operator so the priority queue will put minimum value on top
-    bool operator<(const PriorityInfo& rhs) const
-    {
+    bool operator<(const PriorityInfo& rhs) const {
         return value > rhs.value;
     }
 };
 
 struct WriteBuffer
 {
-    int index;
-    int* segmentLengths;
+    int    index;
+    int*   segmentLengths;
     float* data;
+
     WriteBuffer() {
-        index = 0;
+        index    = 0;
         writeNum = 0;
     }
 
     void init(int length, int numThreads) {
-        data = new float[length];
+        data           = new float[length];
         segmentLengths = new int[numThreads];
     }
 
     void finalizeWrite(int length) {
         segmentLengths[writeNum] = length;
         index += length;
-        writeNum++;
+        ++writeNum;
     }
 
 private:
     int writeNum;
 };
 
-float* sort(float *data, int length);
-float* standardSort(float*data, int length);
-void multimerge(float* arrays[], const int lengths[], const int numArrays, float newArray[],
+int    gen_input(float *A, int n, int input_type);
+float* sort(float* data, int length);
+float* standardSort(float* data, int length);
+void   multimerge(float* arrays[], const int lengths[], const int numArrays, float newArray[],
                                                                          const int newLength);
-/* generate different inputs for testing sort */
-int gen_input(float *A, int n, int input_type);
 
 int main(int argc, char* argv[])
 {
-    if (argc != 4) {
+    if (argc != NUM_ARG) {
         fprintf(stderr, "%s <n> <input_type> <alg_type>\n", argv[0]);
         fprintf(stderr, "input_type 0: uniform random\n");
         fprintf(stderr, "           1: already sorted\n");
         fprintf(stderr, "           2: almost sorted\n");
         fprintf(stderr, "           3: single unique value\n");
         fprintf(stderr, "           4: sorted in reverse\n");
-        fprintf(stderr, "alg_type 0: use C++ std::sort\n");
-        fprintf(stderr, "         1: use parallel sort\n");
+        fprintf(stderr, "alg_type   0: use C++ std::sort\n");
+        fprintf(stderr, "           1: use parallel sort\n");
         exit(1);
     }
 
     int n;
-
     n = atoi(argv[1]);
-
     assert(n > 0);
     assert(n <= 1000000000);
 
-    float *A;
+    float* A;
     A = new float[n];
     assert(A != 0);
 
@@ -94,14 +99,11 @@ int main(int argc, char* argv[])
     assert(input_type <= 4);
 
     int alg_type = atoi(argv[3]);
-
-    int num_iterations = 10;
-
     assert((alg_type == 0) || (alg_type == 1));
 
     
 
-    for (int i = 0; i < num_iterations; ++i) {
+    for (int i = 0; i < NUM_ITER; ++i) {
         gen_input(A, n, input_type);
 
 #ifdef CHECK_ALG
@@ -114,9 +116,9 @@ int main(int argc, char* argv[])
         delete[] r2;
 #endif //CHECK_ALG
 
-        double time = omp_get_wtime();
+        double time      = omp_get_wtime();
         float* result;
-        int printDigs = n > 5 ? 5 : n;
+        int    printDigs = n > 5 ? 5 : n;
 
         if (alg_type == 0) {
             result = standardSort(A, n);
@@ -150,6 +152,7 @@ float* sort(float *data, int length) {
     WriteBuffer* dataInBuffs      = new WriteBuffer[numThreads];
     float**      sortedDatas      = new float*[numThreads];
     float*       finalData        = new float[length];
+
     for (int i = 0; i < numThreads; ++i) {
         dataInBuffs[i].init(length, numThreads);
     }
@@ -175,11 +178,13 @@ float* sort(float *data, int length) {
         int dataStart  = dataStartIndexes[threadId];
         int dataLength = dataLengths[threadId];
 
+
 #ifdef DEBUG_TRACE
 #pragma omp critical 
         std::cout << "I'm Thread " << threadId << " and handle data from " << dataStartIndexes[threadId] <<
             " to " << dataStartIndexes[threadId] + dataLengths[threadId] - 1 << std::endl;
-#endif
+#endif // DEBUG_TRACE
+
 
         // Quicksort ///////////////////////////////////////////////////
         // should each thread operate on the main array but only in its own secgment?
@@ -187,6 +192,8 @@ float* sort(float *data, int length) {
         // either way, we should just find a library function to do this prob
         std::vector<float> dataVec(data + dataStart, data + dataStart + dataLength);
         std::sort(dataVec.begin(), dataVec.end());
+
+
 #ifdef DEBUG_TRACE
 #pragma omp critical 
         {
@@ -228,11 +235,15 @@ float* sort(float *data, int length) {
                 arrays[i]  = samples + i * numThreads;
             }
             multimerge(arrays, lengths, numThreads, sortedSamples, numThreadsSq);
+
+
 #ifdef DEBUG_TRACE
             std::cout << "Sorted samples: " << std::endl;
             for (int i = 0; i < numThreadsSq; ++i)
                 std::cout << sortedSamples[i] << std::endl;
 #endif // DEBUG_TRACE
+
+
             // Choose Pivots ///////////////////////////////////////////
             // choose p - 1 pivots from the merged samples, non-randomly
             interval = numThreads;
@@ -244,11 +255,13 @@ float* sort(float *data, int length) {
             // so make the endpoint of the last partition the largest possible float value
             pivots[numThreads] = FLT_MAX;
 
+
 #ifdef DEBUG_TRACE
             std::cout << "The pivots: " << std::endl;
             for (int i = 0; i <= numThreads; ++i)
                 std::cout << pivots[i] << std::endl;
 #endif // DEBUG_TRACE
+
 
         } // implicit barrier
 
@@ -280,6 +293,7 @@ float* sort(float *data, int length) {
             }
         }
 
+
 #ifdef DEBUG_TRACE
 #pragma omp critical
         {
@@ -290,6 +304,7 @@ float* sort(float *data, int length) {
             }
         }
 #endif // DEBUG_TRACE
+
 
 #pragma omp barrier
 
@@ -311,6 +326,7 @@ float* sort(float *data, int length) {
 
 #pragma omp barrier
 
+
 #ifdef DEBUG_TRACE
 #pragma omp critical
         {
@@ -320,6 +336,7 @@ float* sort(float *data, int length) {
             }
         }
 #endif // DEBUG_TRACE
+
 
         // each thread sorts the data the other threads passed to it
         float* dataPointer = dataInBuffs[threadId].data;
@@ -331,6 +348,7 @@ float* sort(float *data, int length) {
         }
         multimerge(arrays, dataInBuffs[threadId].segmentLengths, numThreads, sortedData, dataInBuffs[threadId].index);
         sortedDatas[threadId] = sortedData;
+
 
 #ifdef DEBUG_TRACE
 #pragma omp critical
@@ -370,11 +388,11 @@ float* sort(float *data, int length) {
 // newLength [in]  - length of newArray
 void multimerge(float* arrays[], const int lengths[], const int numArrays, float newArray[],
                                                                          const int newLength) {
-    int* indexes       = new int[numArrays];       // current index into each array in arrays; parallel
-                                                   //   with arrays
-    int  newArrayIndex = 0;                        // current index into newArray
-    std::priority_queue<PriorityInfo> curPriorities;    // priority queue of current smallest values from
-                                                   //   each array in arrays
+    int* indexes       = new int[numArrays];          // current index into each array in arrays;
+                                                      //   parallel with arrays
+    int  newArrayIndex = 0;                           // current index into newArray
+    std::priority_queue<PriorityInfo> curPriorities;  // priority queue of current smallest values from
+                                                      //   each array in arrays
 
     // initialize indexes and insert into curPriorities the first value from each array in arrays
     for (int i = 0; i < numArrays; ++i) {
@@ -410,36 +428,30 @@ void multimerge(float* arrays[], const int lengths[], const int numArrays, float
 float* standardSort(float* data, int length) {
     std::vector<float> dataVec(data, data + length);
     std::sort(dataVec.begin(), dataVec.end());
+
     float* result = new float[dataVec.size()];
     std::copy(dataVec.begin(), dataVec.end(), result);
+
     return result;
 }
 
 /* generate different inputs for testing sort */
 int gen_input(float *A, int n, int input_type) {
-
     int i;
 
-    /* uniform random values */
-    if (input_type == 0) {
-
+    if (input_type == 0) {                      /* uniform random values */
         srand(123);
+
         for (i = 0; i<n; i++) {
             A[i] = ((float)rand()) / ((float)RAND_MAX) * 10000;
         }
-
-        /* sorted values */
     }
-    else if (input_type == 1) {
-
+    else if (input_type == 1) {                 /* sorted values */
         for (i = 0; i<n; i++) {
             A[i] = (float)i;
         }
-
-        /* almost sorted */
     }
-    else if (input_type == 2) {
-
+    else if (input_type == 2) {                 /* almost sorted */
         for (i = 0; i<n; i++) {
             A[i] = (float)i;
         }
@@ -456,23 +468,16 @@ int gen_input(float *A, int n, int input_type) {
             A[j] = A[k];
             A[k] = tmpval;
         }
-
-        /* array with single unique value */
     }
-    else if (input_type == 3) {
-
+    else if (input_type == 3) {                 /* array with single unique value */
         for (i = 0; i<n; i++) {
             A[i] = 1.0;
         }
-
-        /* sorted in reverse */
     }
-    else {
-
+    else {                                      /* sorted in reverse */
         for (i = 0; i<n; i++) {
             A[i] = (float)(n + 1.0 - i);
         }
-
     }
 
     return 0;
