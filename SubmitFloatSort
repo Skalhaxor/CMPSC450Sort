@@ -1,0 +1,48 @@
+# This is a sample PBS script. It will request 16 processors on 1 node
+# for 10 mins
+#   
+#   Request 8 processors on 1 node 
+#   
+#PBS -l nodes=1:ppn=16
+#
+#   Request 10 mins of walltime
+#
+#PBS -l walltime=0:10:00
+#
+#   Request 2 gigabyte of memory per process
+#
+#PBS -l mem=2gb
+#
+#   Request that regular output and terminal output go to the same file
+#
+#PBS -j oe
+#
+#   The following is the body of the script. By default,
+#   PBS scripts execute in your home directory, not the
+#   directory from which they were submitted. The following
+#   line places you in the directory from which the job
+#   was submitted.
+#
+cd $PBS_O_WORKDIR
+#
+#   Now we want to run the program "hello".  "hello" is in
+#   the directory that this script is being submitted from,
+#   $PBS_O_WORKDIR.
+#
+unset OMP_NUM_THREADS
+echo " "
+echo " "
+echo "Job started on `hostname` at `date`"
+./floatSort 100000000 0 0
+./floatSort 100000000 0 1
+./floatSort 100000000 1 0
+./floatSort 100000000 1 1
+./floatSort 100000000 2 0
+./floatSort 100000000 2 1
+./floatSort 100000000 3 0
+./floatSort 100000000 3 1
+./floatSort 100000000 4 0
+./floatSort 100000000 4 1
+echo " "
+echo "Job Ended at `date`"
+echo " "

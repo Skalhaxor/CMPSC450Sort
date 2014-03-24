@@ -10,13 +10,14 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cfloat>
 
 // define this to get lots of trace output from the parallel sort algorithm
 //#define DEBUG_TRACE
 
 // define this to have the program run std::sort and the parallel sort and make sure they
 //produce the right output
-#define CHECK_ALG
+//#define CHECK_ALG
 
 #define NUM_ITER 10           // number of times to run the algorithm for testing
 #define NUM_ARG  4            // number of arguments being passed on command line
@@ -61,6 +62,11 @@ struct WriteBuffer
         ++writeNum;
     }
 
+    ~WriteBuffer() {
+        delete[] data;
+        delete[] segmentLengths;
+    }
+
 private:
     int writeNum;
 };
@@ -101,8 +107,19 @@ int main(int argc, char* argv[])
     int alg_type = atoi(argv[3]);
     assert((alg_type == 0) || (alg_type == 1));
 
+    std::cout << "Number of Elements: " << n << "\n";
+    switch (input_type) {
+    case 0: std::cout << "Input Type: Uniform Random\n"; break;
+    case 1: std::cout << "Input Type: Sorted\n"; break;
+    case 2: std::cout << "Input Type: Almost Sorted\n"; break;
+    case 3: std::cout << "Input Type: Single Value\n"; break;
+    case 4: std::cout << "Input Type: Reversed\n"; break;
+    }
+    switch (alg_type) {
+    case 0: std::cout << "Alg Type: std::sort\n"; break;
+    case 1: std::cout << "Alg Type: Parallel Sort on " << omp_get_max_threads() << " threads\n"; break;
+    }
     
-
     for (int i = 0; i < NUM_ITER; ++i) {
         gen_input(A, n, input_type);
 
@@ -128,7 +145,7 @@ int main(int argc, char* argv[])
         }
         time = omp_get_wtime() - time;
         
-        printf("Iteration %d: %9.3lfms  First numbers: (", i + 1, time);
+        printf("Iteration %d: %9.3lfs  First numbers: (", i + 1, time);
         for (int j = 0; j < printDigs; ++j) {
             printf(" %.3f", result[j]);
         }
@@ -235,7 +252,8 @@ float* sort(float *data, int length) {
                 arrays[i]  = samples + i * numThreads;
             }
             multimerge(arrays, lengths, numThreads, sortedSamples, numThreadsSq);
-
+            delete[] arrays;
+            delete[] lengths;
 
 #ifdef DEBUG_TRACE
             std::cout << "Sorted samples: " << std::endl;
@@ -348,7 +366,7 @@ float* sort(float *data, int length) {
         }
         multimerge(arrays, dataInBuffs[threadId].segmentLengths, numThreads, sortedData, dataInBuffs[threadId].index);
         sortedDatas[threadId] = sortedData;
-
+        delete[] arrays;
 
 #ifdef DEBUG_TRACE
 #pragma omp critical
@@ -375,6 +393,17 @@ float* sort(float *data, int length) {
             }
         }
     } // end omp parallel
+
+    // clean up allocated memory
+    delete[] dataStartIndexes;
+    delete[] dataLengths;
+    delete[] samples;
+    delete[] pivots;
+    delete[] dataInBuffs;
+    for (int i = 0; i < numThreads; ++i) {
+        delete[] sortedDatas[i];
+    }
+    delete[] sortedDatas;
 
     return finalData;
 }
