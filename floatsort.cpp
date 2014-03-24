@@ -115,19 +115,19 @@ int main(int argc, char* argv[])
         delete[] r1;
         delete[] r2;
 #endif //CHECK_ALG
-
-        double time      = omp_get_wtime();
+  
         float* result;
         int    printDigs = n > 5 ? 5 : n;
 
+        double time = omp_get_wtime();
         if (alg_type == 0) {
             result = standardSort(A, n);
         }
         else /*if (alg_type == 1)*/ {
             result = sort(A, n);
         }
-
         time = omp_get_wtime() - time;
+        
         printf("Iteration %d: %9.3lfms  First numbers: (", i + 1, time);
         for (int j = 0; j < printDigs; ++j) {
             printf(" %.3f", result[j]);
