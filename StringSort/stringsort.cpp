@@ -13,9 +13,11 @@
 #include <omp.h>
 #include <vector>
 
+// Pool Allocator--------------------------------------------------------------------------------------
 #define PTR(x) *((T**)(&(x)))
 
-// Pool allocator for STL library, source: http://forums.codeguru.com/showthread.php?406108-A-faster-std-set&p=2049091#post2049091
+// Pool allocator for STL library, source:
+// http://forums.codeguru.com/showthread.php?406108-A-faster-std-set&p=2049091#post2049091
 template <typename T>
 class bestAlloc {
 public:
@@ -105,7 +107,7 @@ public:
     void free_(void * const ptr, const size_type n) {
         assert(n == 1);
 
-        if (ptr == NULL)return;
+        if (ptr == NULL) return;
 
         T* p = (T*)ptr;
 
@@ -114,7 +116,7 @@ public:
 
         numAllocated--;
 
-        if (numAllocated == 0)releaseMemory();
+        if (numAllocated == 0) releaseMemory();
     }
 
     void releaseMemory() {
@@ -223,6 +225,12 @@ public:
 };
 
 #undef PTR
+// End Pool Allocator----------------------------------------------------------------------------------
+
+
+
+
+
 
 // define this to get lots of trace output from the parallel sort algorithm
 //#define DEBUG_TRACE
@@ -260,24 +268,26 @@ int main(int argc, char* argv[])
     std::string* stringArray = new std::string[n];
     const char** cStrArray   = new const char*[n];
 
-    // NOTE: consider using mmap to get access to the whole file and read lines parallely
     for (int i = 0; i < n && !stream.eof(); ++i) {
         getline(stream, stringArray[i]);
         cStrArray[i] = stringArray[i].c_str();
+
         if (stream.fail()) {
             std::cerr << "Error while reading from file" << std::endl;
             exit(1);
         }
     }
 
+
 #ifdef DEBUG_TRACE
+    std::cout << "The initial string array" << std::endl;
     for (int i = 0; i < n; ++i) {
-        std::cout << stringArray[i] << std::endl;
+        std::cout << cStrArray[i] << std::endl;
     }
 #endif // DEBUG_TRACE
 
-    for (int i = 0; i < NUM_ITER; ++i) {
 
+    for (int i = 0; i < NUM_ITER; ++i) {
         int numUniqueStrings;
 
         double time = omp_get_wtime();
@@ -296,6 +306,7 @@ int main(int argc, char* argv[])
     }
 
     delete[] stringArray;
+    delete[] cStrArray;
 }
 
 int parallel_sort() {
@@ -308,30 +319,29 @@ int parallel_sort() {
 
 
 
-// Serial methods
-int find_uniq_stl_map(const char **str_array, const int num_strings) {
+// Serial methods--------------------------------------------------------------------------------------
+int find_uniq_stl_map(const char** str_array, const int num_strings) {
 
-    char **B;
-    B = (char **) malloc(num_strings * sizeof(char *));
+    char** B;
+    B = (char**) malloc(num_strings * sizeof(char*));
     assert(B != NULL);
 
-    int *counts;
-    counts = (int *) malloc(num_strings * sizeof(int));
-        
+    int* counts;
+    counts = (int*) malloc(num_strings * sizeof(int));
+    
+    memcpy(B, str_array, num_strings * sizeof(char*));
+
     int i;
-
-    memcpy(B, str_array, num_strings * sizeof(char *));
-
-    for (i=0; i<num_strings; i++) {
+    for (i = 0; i < num_strings; ++i) {
         counts[i] = 0;
     }
 
     std::map<std::string, int, std::less<std::string>, bestAlloc<std::string>> str_map;
 
-    for (i=0; i<num_strings; i++) {
+    for (i = 0; i < num_strings; ++i) {
         std::string curr_str(B[i]);
         //curr_str.assign(B[i], strlen(B[i]));
-        str_map[curr_str]++;
+        ++str_map[curr_str];
     }
 
     free(B);
@@ -354,20 +364,18 @@ public:
     }
 };
 
-int find_uniq_stl_sort(const char **str_array, const int num_strings) {
-
-    char **B;
-    B = (char **) malloc(num_strings * sizeof(char *));
+int find_uniq_stl_sort(const char** str_array, const int num_strings) {
+    char** B;
+    B = (char**) malloc(num_strings * sizeof(char*));
     assert(B != NULL);
 
-    int *counts;
-    counts = (int *) malloc(num_strings * sizeof(int));
-        
+    int* counts;
+    counts = (int*) malloc(num_strings * sizeof(int));
+
+    memcpy(B, str_array, num_strings * sizeof(char*));
+
     int i;
-
-    memcpy(B, str_array, num_strings * sizeof(char *));
-
-    for (i=0; i<num_strings; i++) {
+    for (i = 0; i < num_strings; ++i) {
         counts[i] = 0;
     }
 
@@ -376,15 +384,15 @@ int find_uniq_stl_sort(const char **str_array, const int num_strings) {
 
     /* determine number of unique strings 
         and count of each string */
-    int num_uniq_strings = 1;
+    int num_uniq_strings        = 1;
     int string_occurrence_count = 1;
-    for (i=1; i<num_strings; i++) {
+    for (i = 1; i < num_strings; ++i) {
         if (strcmp(B[i], B[i-1]) != 0) {
-            num_uniq_strings++;
+            ++num_uniq_strings;
             counts[i-1] = string_occurrence_count;
             string_occurrence_count = 1;
         } else {
-            string_occurrence_count++;
+            ++string_occurrence_count;
         }
     }
     counts[num_strings-1] = string_occurrence_count;
@@ -392,7 +400,6 @@ int find_uniq_stl_sort(const char **str_array, const int num_strings) {
     free(B);
     free(counts);
 
-
     return num_uniq_strings;
-
 }
+// End Serial methods----------------------------------------------------------------------------------
