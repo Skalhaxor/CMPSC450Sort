@@ -128,8 +128,7 @@ int parallel_sort(std::string* data, int length) {
     // data of each thread to sort
     std::vector<std::vector<std::string> > datas(numThreads);
 
-    // the thread with id #1 found a string that belongs to thread #3 and adds it
-    // buckets[1][3].push_back(string)
+    // initalize vectors each thread will use to sort its data
     std::vector<std::vector<std::vector<std::string> > > buckets(numThreads);
     for (int i = 0; i < numThreads; ++i) {
         buckets[i] = std::vector<std::vector<std::string> >(numThreads);
@@ -141,7 +140,8 @@ int parallel_sort(std::string* data, int length) {
 #pragma omp parallel firstprivate(numThreads, numThreadsSq)
     {
         int threadId = omp_get_thread_num();
-        // [parallel] go through section of data over each string and insert into threads vector if string falls in threads range
+
+        // have each thread go over a portion of the input data and determine which thread should handle it
 #pragma omp for
         for (int i = 0; i < length; ++i)
         {
@@ -153,7 +153,7 @@ int parallel_sort(std::string* data, int length) {
             buckets[threadId][threadToGive].push_back(str);
         }
 
-
+        // move data to proper thread
         std::vector<std::string> myData = datas[threadId];
         for (int i = 0; i < numThreads; ++i) {
             myData.insert(myData.end(), buckets[i][threadId].begin(), buckets[i][threadId].end());
@@ -170,12 +170,8 @@ int parallel_sort(std::string* data, int length) {
 #pragma omp barrier
 #endif
 
-        // each thread has a vector[numThreads]
-        // as the thread scans through its portion of the data, insert data into the proper vector[index]
-        // barrier
-        // each thread now reads its segment of the data from the other threads and inserts into its own data vector
 
-        // each thread sorts the strings in its bucket
+        // each thread sorts its own strings
         std::sort(myData.begin(), myData.end());
 
         // each thread finds the # of uniques in its bucket and the # of occurences for those uniques
