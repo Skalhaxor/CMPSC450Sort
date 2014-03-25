@@ -42,7 +42,7 @@ struct PriorityInfo
 
 struct WriteBuffer
 {
-    int    index;
+    int    index;           //index of data to write to
     int*   segmentLengths;
     float* data;
 
@@ -161,20 +161,20 @@ float* sort(float *data, int length) {
     // Initialize //////////////////////////////////////////////////////
     int          numThreads       = omp_get_max_threads();
     int          numThreadsSq     = numThreads * numThreads;
-    int*         dataStartIndexes = new int[numThreads];
-    int*         dataLengths      = new int[numThreads];
-    int          segmentLength    = length / numThreads;
-    float*       samples          = new float[numThreadsSq];
-    float*       pivots           = new float[numThreads + 1];
-    WriteBuffer* dataInBuffs      = new WriteBuffer[numThreads];
-    float**      sortedDatas      = new float*[numThreads];
+    int*         dataStartIndexes = new int[numThreads];            // where each thread's data starts
+    int*         dataLengths      = new int[numThreads];            // how much data each thread gets
+    int          segmentLength    = length / numThreads;            
+    float*       samples          = new float[numThreadsSq];        // samples collected from each thread
+    float*       pivots           = new float[numThreads + 1];      // pivots to partition data by
+    WriteBuffer* dataInBuffs      = new WriteBuffer[numThreads];    
+    float**      sortedDatas      = new float*[numThreads];         // finished sorted data in each thread
     float*       finalData        = new float[length];
 
     for (int i = 0; i < numThreads; ++i) {
         dataInBuffs[i].init(length, numThreads);
     }
 
-    // Partition Data //////////////////////////////////////////////////
+    // Partition Data just by location input array
     for (int i = 0; i < numThreads - 1; ++i) {
         dataLengths[i]      = segmentLength;
         dataStartIndexes[i] = segmentLength*i;
@@ -185,6 +185,7 @@ float* sort(float *data, int length) {
     dataLengths[numThreads - 1]      = length - dataStartIndexes[numThreads - 1];
     
     // Startup Threads /////////////////////////////////////////////////
+    // Note from OpenMP documentation:
     // If a SHARED variable in a parallel region is read by the threads executing the region,
     // but not written to by any of the threads, then specify that variable to be FIRSTPRIVATE instead
     // of SHARED. This avoids accessing the variable by dereferencing a pointer, and avoids cache
@@ -203,10 +204,7 @@ float* sort(float *data, int length) {
 #endif // DEBUG_TRACE
 
 
-        // Quicksort ///////////////////////////////////////////////////
-        // should each thread operate on the main array but only in its own secgment?
-        // or should each thread copy its data segment to its own local private array?
-        // either way, we should just find a library function to do this prob
+        // Each thread sorts its initial partition of data
         std::vector<float> dataVec(data + dataStart, data + dataStart + dataLength);
         std::sort(dataVec.begin(), dataVec.end());
 
@@ -222,7 +220,7 @@ float* sort(float *data, int length) {
 
         
         // Choose Sample Data //////////////////////////////////////////
-        // choose numThreads amount from each thread's data; has to be non-random
+        // choose numThreads amount from each thread's data regularly 
         int sampleStart = numThreads * threadId;
         int interval    = dataLength / numThreads;
         for (int i = 0; i < numThreads; ++i) {

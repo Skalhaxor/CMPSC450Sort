@@ -111,16 +111,16 @@ int parallel_sort(std::string* data, int length) {
                                                                  //   string for each thread's bucket
     std::vector<int> occurenceCount;           // the # of occurences of each string
 
-    // take samples / create bucket range for each thread
-    
+    // get random samples
     for (int i = 0; i < numThreadsSq; ++i) {
         std::string selected = data[rand() % length];
         samples[i] = selected;
     }
 
+    // sort samples
     std::sort(samples.begin(), samples.end());
       
-    // choose p-1 strings as bucket dividers
+    // choose numThreads-1 samples as bucket dividers
     for (int i = 0; i < numThreads - 1; ++i) {
         dividers[i] = samples[numThreads * (i + 1)];
     }
@@ -221,11 +221,6 @@ int parallel_sort(std::string* data, int length) {
 
     return numUnique;
 }
-
-
-
-
-
 
 
 // Serial methods--------------------------------------------------------------------------------------
