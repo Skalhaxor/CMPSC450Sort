@@ -5,7 +5,7 @@
 #   
 #PBS -l nodes=1:ppn=16
 #
-#   Request 10 mins of walltime
+#   Request 20 mins of walltime
 #
 #PBS -l walltime=0:20:00
 #
@@ -29,7 +29,6 @@ cd $PBS_O_WORKDIR
 #   the directory that this script is being submitted from,
 #   $PBS_O_WORKDIR.
 #
-# Sort 100,000,000 elements
 unset OMP_NUM_THREADS
 echo " "
 echo " "
