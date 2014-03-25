@@ -30,21 +30,17 @@ cd $PBS_O_WORKDIR
 #   $PBS_O_WORKDIR.
 #
 # Sort 100,000,000 elements
-NUM_DATA=100000000
 unset OMP_NUM_THREADS
 echo " "
 echo " "
 echo "Job started on `hostname` at `date`"
-./floatSort ${NUM_DATA} 0 0
-./floatSort ${NUM_DATA} 0 1
-./floatSort ${NUM_DATA} 1 0
-./floatSort ${NUM_DATA} 1 1
-./floatSort ${NUM_DATA} 2 0
-./floatSort ${NUM_DATA} 2 1
-./floatSort ${NUM_DATA} 3 0
-./floatSort ${NUM_DATA} 3 1
-./floatSort ${NUM_DATA} 4 0
-./floatSort ${NUM_DATA} 4 1
+for i in /gpfs/scratch/kxm85/CMPSC450_HW2/string_data/* ; do
+  WC=`wc -l < $i`;
+  echo "For file $i"
+  for alg in {0..2} ; do
+    ./stringSort $i $WC $alg
+  done
+done
 echo " "
 echo "Job Ended at `date`"
 echo " "
