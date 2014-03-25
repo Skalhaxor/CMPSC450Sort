@@ -1,7 +1,7 @@
 # This is a sample PBS script. It will request 16 processors on 1 node
 # for 10 mins
 #   
-#   Request 8 processors on 1 node 
+#   Request 16 processors on 1 node 
 #   
 #PBS -l nodes=1:ppn=16
 #
@@ -9,9 +9,9 @@
 #
 #PBS -l walltime=0:10:00
 #
-#   Request 2 gigabyte of memory per process
+#   Request 9 gigabytes of memory for the whole program
 #
-#PBS -l mem=2gb
+#PBS -l mem=9gb
 #
 #   Request that regular output and terminal output go to the same file
 #
@@ -29,20 +29,22 @@ cd $PBS_O_WORKDIR
 #   the directory that this script is being submitted from,
 #   $PBS_O_WORKDIR.
 #
+# Sort 100,000,000 elements
+NUM_DATA=100000000
 unset OMP_NUM_THREADS
 echo " "
 echo " "
 echo "Job started on `hostname` at `date`"
-./floatSort 100000000 0 0
-./floatSort 100000000 0 1
-./floatSort 100000000 1 0
-./floatSort 100000000 1 1
-./floatSort 100000000 2 0
-./floatSort 100000000 2 1
-./floatSort 100000000 3 0
-./floatSort 100000000 3 1
-./floatSort 100000000 4 0
-./floatSort 100000000 4 1
+./floatSort ${NUM_DATA} 0 0
+./floatSort ${NUM_DATA} 0 1
+./floatSort ${NUM_DATA} 1 0
+./floatSort ${NUM_DATA} 1 1
+./floatSort ${NUM_DATA} 2 0
+./floatSort ${NUM_DATA} 2 1
+./floatSort ${NUM_DATA} 3 0
+./floatSort ${NUM_DATA} 3 1
+./floatSort ${NUM_DATA} 4 0
+./floatSort ${NUM_DATA} 4 1
 echo " "
 echo "Job Ended at `date`"
 echo " "

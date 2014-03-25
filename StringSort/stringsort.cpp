@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <omp.h>
 #include <vector>
+#include <unordered_set>
 
 // Pool Allocator--------------------------------------------------------------------------------------
 #define PTR(x) *((T**)(&(x)))
@@ -239,6 +240,7 @@ public:
 #define NUM_ARG       4            // number of arguments being passed on command line
 
 int find_uniq_stl_map(const char **str_array, const int num_strings);
+int find_uniq_stl_set(const char **str_array, const int num_strings);
 int find_uniq_stl_sort(const char **str_array, const int num_strings); 
 int parallel_sort();
 
@@ -248,7 +250,8 @@ int main(int argc, char* argv[])
         fprintf(stderr, "%s <input file> <n> <alg_type>\n", argv[0]);
         fprintf(stderr, "alg_type 0: use STL sort, then find unique strings\n");
         fprintf(stderr, "         1: use STL map\n");
-        fprintf(stderr, "         2: use parallel sort\n");
+        fprintf(stderr, "         2: use STL unordered_set\n");
+        fprintf(stderr, "         3: use parallel sort\n");
 
         exit(1);
     }
@@ -263,7 +266,7 @@ int main(int argc, char* argv[])
     assert(n <= 1000000000);
 
     int alg_type = atoi(argv[3]);
-    assert((alg_type >= 0) || (alg_type <= 2));
+    assert((alg_type >= 0) || (alg_type <= 3));
 
     std::string* stringArray = new std::string[n];
     const char** cStrArray   = new const char*[n];
@@ -296,6 +299,9 @@ int main(int argc, char* argv[])
         }
         else if (alg_type == 1) {
             numUniqueStrings = find_uniq_stl_map(cStrArray, n);
+        }
+        else if (alg_type == 2) {
+            numUniqueStrings = find_uniq_stl_set(cStrArray, n);
         }
         else {
             numUniqueStrings = parallel_sort();
@@ -349,6 +355,26 @@ int find_uniq_stl_map(const char** str_array, const int num_strings) {
 
     return str_map.size();
 }
+
+int find_uniq_stl_set(const char **str_array, const int num_strings) {
+    char** B;
+    B = (char**)malloc(num_strings * sizeof(char*));
+    assert(B != NULL);
+
+    memcpy(B, str_array, num_strings * sizeof(char*));
+
+    std::unordered_set<std::string> str_set;
+    str_set.reserve(num_strings);
+    for (int i = 0; i < num_strings; ++i) {
+        std::string curr_str(B[i]);
+        str_set.insert(curr_str);
+    }
+
+    free(B);
+
+    return str_set.size();
+}
+
 
 /* comparison routine for STL sort */
 class compare_str_cmpf {
